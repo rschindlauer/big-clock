@@ -297,16 +297,22 @@
                     // Optional: force browser geolocation via ?geo=1
                     loc = await getBrowserCoords();
                 } else {
-                    // Default location: Seattle
-                    loc = await geocodeCity('Seattle, WA');
+                    // Default location: Seattle (hard-coded coords to avoid needing geocoding)
+                    loc = {
+                        name: 'Seattle, WA',
+                        latitude: 47.6062,
+                        longitude: -122.3321,
+                        timezone: 'America/Los_Angeles'
+                    };
                 }
 
                 const w = await fetchWeather(loc);
                 renderWeather(w);
             } catch (e) {
                 // Give the user a clear way to fix it via URL params.
+                console.error('Weather error:', e);
                 $weatherLine.textContent = 'Weather unavailable.';
-                $weatherSub.textContent = 'Try ?city=Seattle or ?lat=47.6062&lon=-122.3321 (optional: &units=metric, or &geo=1)';
+                $weatherSub.textContent = 'Check internet/DNS, or try ?lat=47.6062&lon=-122.3321&name=Seattle (optional: &units=metric, &geo=1)';
             }
         }
 
