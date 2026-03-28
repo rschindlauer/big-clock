@@ -3,43 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clock</title>
+    <title>Big Clock</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap" rel="stylesheet">
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0a;
+            --fg: #888;
+            --muted: #555;
+            --weather-fg: #777;
+            --weather-muted: #4b4b4b;
+        }
+
         body {
-            background: #0a0a0a;
-            color: #888;
-            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
             font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             height: 100vh;
             overflow: hidden;
             user-select: none;
         }
+
+        /* Layout: keep the clock big, weather underneath */
+        #wrap {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2.5vh;
+            padding: 4vh 4vw;
+        }
+
         #clock {
+            line-height: 0.95;
             font-size: 20vw;
             letter-spacing: -0.02em;
             font-variant-numeric: tabular-nums;
+            white-space: nowrap;
         }
+
         #period {
             font-size: 5vw;
             font-weight: 300;
-            color: #555;
+            color: var(--muted);
             margin-left: 1vw;
             vertical-align: super;
+        }
+
+        #weather {
+            font-weight: 300;
+            color: var(--weather-fg);
+            font-size: 3.2vw;
+            line-height: 1.2;
+            text-align: center;
+            max-width: 92vw;
+        }
+
+        #weather small {
+            display: block;
+            margin-top: 0.6vh;
+            font-size: 2.2vw;
+            color: var(--weather-muted);
+            font-weight: 300;
+        }
+
+        /* When the screen is very tall/narrow, avoid oversized weather text */
+        @media (max-aspect-ratio: 10/16) {
+            #clock { font-size: 22vw; }
+            #weather { font-size: 4.2vw; }
+            #weather small { font-size: 3.0vw; }
+        }
+
+        /* When the screen is very wide, cap the clock size */
+        @media (min-aspect-ratio: 21/9) {
+            #clock { font-size: 16vw; }
+            #period { font-size: 4vw; }
+            #weather { font-size: 2.4vw; }
+            #weather small { font-size: 1.7vw; }
+        }
+
+        /* Respect reduced motion (we only refresh on a timer, but keep it tidy) */
+        @media (prefers-reduced-motion: reduce) {
+            * { scroll-behavior: auto; }
         }
     </style>
 </head>
 <body>
-    <div id="clock"><span id="time"></span><span id="period"></span></div>
+    <div id="wrap">
+        <div id="clock" aria-label="Current time">
+            <span id="time"></span><span id="period" aria-hidden="true"></span>
+        </div>
+
+        <div id="weather" aria-label="Weather">
+            <div id="weather-line">Loading weather…</div>
+            <small id="weather-sub"></small>
+        </div>
+    </div>
+
     <script>
-        function update() {
-            const now = new Date();
+        // --------- Clock ---------
+        function renderClock(now) {
             let h = now.getHours();
             const m = String(now.getMinutes()).padStart(2, '0');
             const period = h >= 12 ? 'PM' : 'AM';
@@ -47,8 +117,199 @@
             document.getElementById('time').textContent = `${h}:${m}`;
             document.getElementById('period').textContent = period;
         }
-        update();
-        setInterval(update, 1000);
+
+        function tickClockAligned() {
+            const now = new Date();
+            renderClock(now);
+            // Align to the next second boundary; we only show minutes, but this keeps it steady.
+            const msToNextSecond = 1000 - now.getMilliseconds();
+            setTimeout(tickClockAligned, msToNextSecond);
+        }
+
+        tickClockAligned();
+
+        // --------- Weather ---------
+        // Uses Open-Meteo (no API key):
+        // - Geocoding: https://geocoding-api.open-meteo.com/v1/search?name=Berlin&count=1
+        // - Forecast:   https://api.open-meteo.com/v1/forecast?latitude=..&longitude=..&current=..&daily=..
+
+        const $weatherLine = document.getElementById('weather-line');
+        const $weatherSub = document.getElementById('weather-sub');
+
+        function qs() {
+            return new URLSearchParams(location.search);
+        }
+
+        function pickUnits() {
+            // units: metric (default) or imperial
+            const units = (qs().get('units') || 'metric').toLowerCase();
+            return {
+                units,
+                temperature_unit: units === 'imperial' ? 'fahrenheit' : 'celsius',
+                windspeed_unit: units === 'imperial' ? 'mph' : 'kmh'
+            };
+        }
+
+        function wmoToText(code) {
+            // Minimal WMO interpretation. (Intentionally compact; can be expanded later.)
+            const map = {
+                0: 'Clear',
+                1: 'Mostly clear',
+                2: 'Partly cloudy',
+                3: 'Overcast',
+                45: 'Fog',
+                48: 'Rime fog',
+                51: 'Light drizzle',
+                53: 'Drizzle',
+                55: 'Heavy drizzle',
+                61: 'Light rain',
+                63: 'Rain',
+                65: 'Heavy rain',
+                71: 'Light snow',
+                73: 'Snow',
+                75: 'Heavy snow',
+                80: 'Rain showers',
+                81: 'Heavy showers',
+                82: 'Violent showers',
+                95: 'Thunderstorm',
+                96: 'Thunderstorm w/ hail',
+                99: 'Thunderstorm w/ hail'
+            };
+            return map[code] ?? `Weather (${code})`;
+        }
+
+        async function geocodeCity(name) {
+            const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=en&format=json`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('Geocoding failed');
+            const data = await res.json();
+            const first = data?.results?.[0];
+            if (!first) throw new Error('City not found');
+            return {
+                name: [first.name, first.admin1, first.country].filter(Boolean).join(', '),
+                latitude: first.latitude,
+                longitude: first.longitude,
+                timezone: first.timezone || 'auto'
+            };
+        }
+
+        function getLocationFromQuery() {
+            const p = qs();
+            const lat = p.get('lat');
+            const lon = p.get('lon');
+            const name = p.get('name');
+            const city = p.get('city');
+            if (lat && lon) {
+                return {
+                    kind: 'coords',
+                    name: name || 'Local weather',
+                    latitude: Number(lat),
+                    longitude: Number(lon),
+                    timezone: p.get('tz') || 'auto'
+                };
+            }
+            if (city) {
+                return { kind: 'city', city };
+            }
+            return null;
+        }
+
+        function getBrowserCoords() {
+            return new Promise((resolve, reject) => {
+                if (!('geolocation' in navigator)) {
+                    reject(new Error('Geolocation unavailable'));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve({
+                        kind: 'coords',
+                        name: 'Local weather',
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        timezone: 'auto'
+                    }),
+                    (err) => reject(err),
+                    { enableHighAccuracy: false, timeout: 8000, maximumAge: 15 * 60 * 1000 }
+                );
+            });
+        }
+
+        async function fetchWeather({ latitude, longitude, timezone, name }) {
+            const { temperature_unit, windspeed_unit } = pickUnits();
+            const url = new URL('https://api.open-meteo.com/v1/forecast');
+            url.searchParams.set('latitude', String(latitude));
+            url.searchParams.set('longitude', String(longitude));
+            url.searchParams.set('timezone', timezone || 'auto');
+            url.searchParams.set('temperature_unit', temperature_unit);
+            url.searchParams.set('windspeed_unit', windspeed_unit);
+
+            // current: temp + apparent + weather code
+            url.searchParams.set('current', 'temperature_2m,apparent_temperature,weather_code');
+
+            // daily forecast: max/min + precip probability + weather code
+            url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code');
+            url.searchParams.set('forecast_days', '1');
+
+            const res = await fetch(url.toString(), { cache: 'no-store' });
+            if (!res.ok) throw new Error('Weather fetch failed');
+            const data = await res.json();
+
+            const cur = data?.current;
+            const daily = data?.daily;
+
+            if (!cur || !daily) throw new Error('Weather data missing');
+
+            return {
+                placeName: name,
+                currentTemp: Math.round(cur.temperature_2m),
+                feelsLike: Math.round(cur.apparent_temperature),
+                currentCode: cur.weather_code,
+                hi: Math.round(daily.temperature_2m_max?.[0]),
+                lo: Math.round(daily.temperature_2m_min?.[0]),
+                pop: daily.precipitation_probability_max?.[0],
+                todayCode: daily.weather_code?.[0],
+                unitSymbol: temperature_unit === 'fahrenheit' ? '°F' : '°C'
+            };
+        }
+
+        function renderWeather(w) {
+            const cond = wmoToText(w.currentCode);
+            const todayCond = wmoToText(w.todayCode);
+            const popTxt = (w.pop === 0 || w.pop) ? ` • ${w.pop}% precip` : '';
+
+            $weatherLine.textContent = `${w.placeName}: ${w.currentTemp}${w.unitSymbol} (${cond})`;
+            $weatherSub.textContent = `Today: ${w.hi}${w.unitSymbol} / ${w.lo}${w.unitSymbol} • ${todayCond}${popTxt}`;
+        }
+
+        async function updateWeatherOnce() {
+            try {
+                $weatherLine.textContent = 'Loading weather…';
+                $weatherSub.textContent = '';
+
+                const queryLoc = getLocationFromQuery();
+                let loc;
+
+                if (queryLoc?.kind === 'coords') {
+                    loc = queryLoc;
+                } else if (queryLoc?.kind === 'city') {
+                    loc = await geocodeCity(queryLoc.city);
+                } else {
+                    // Default: try browser geolocation (kiosk-friendly if the browser grants it).
+                    loc = await getBrowserCoords();
+                }
+
+                const w = await fetchWeather(loc);
+                renderWeather(w);
+            } catch (e) {
+                // Give the user a clear way to fix it via URL params.
+                $weatherLine.textContent = 'Weather unavailable.';
+                $weatherSub.textContent = 'Try ?city=Berlin or ?lat=48.137&lon=11.575 (optional: &units=imperial)';
+            }
+        }
+
+        // Initial load + refresh every 10 minutes.
+        updateWeatherOnce();
+        setInterval(updateWeatherOnce, 10 * 60 * 1000);
     </script>
 </body>
 </html>
