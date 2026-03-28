@@ -141,12 +141,12 @@
         }
 
         function pickUnits() {
-            // units: metric (default) or imperial
-            const units = (qs().get('units') || 'metric').toLowerCase();
+            // units: imperial (default) or metric
+            const units = (qs().get('units') || 'imperial').toLowerCase();
             return {
                 units,
-                temperature_unit: units === 'imperial' ? 'fahrenheit' : 'celsius',
-                windspeed_unit: units === 'imperial' ? 'mph' : 'kmh'
+                temperature_unit: units === 'metric' ? 'celsius' : 'fahrenheit',
+                windspeed_unit: units === 'metric' ? 'kmh' : 'mph'
             };
         }
 
@@ -293,9 +293,12 @@
                     loc = queryLoc;
                 } else if (queryLoc?.kind === 'city') {
                     loc = await geocodeCity(queryLoc.city);
-                } else {
-                    // Default: try browser geolocation (kiosk-friendly if the browser grants it).
+                } else if ((qs().get('geo') || '').toLowerCase() === '1') {
+                    // Optional: force browser geolocation via ?geo=1
                     loc = await getBrowserCoords();
+                } else {
+                    // Default location: Seattle
+                    loc = await geocodeCity('Seattle, WA');
                 }
 
                 const w = await fetchWeather(loc);
@@ -303,7 +306,7 @@
             } catch (e) {
                 // Give the user a clear way to fix it via URL params.
                 $weatherLine.textContent = 'Weather unavailable.';
-                $weatherSub.textContent = 'Try ?city=Berlin or ?lat=48.137&lon=11.575 (optional: &units=imperial)';
+                $weatherSub.textContent = 'Try ?city=Seattle or ?lat=47.6062&lon=-122.3321 (optional: &units=metric, or &geo=1)';
             }
         }
 
