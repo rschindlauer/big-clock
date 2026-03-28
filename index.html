@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clock</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            color: #888;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #clock {
+            font-size: 20vw;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+        #period {
+            font-size: 5vw;
+            font-weight: 300;
+            color: #555;
+            margin-left: 1vw;
+            vertical-align: super;
+        }
+    </style>
+</head>
+<body>
+    <div id="clock"><span id="time"></span><span id="period"></span></div>
+    <script>
+        function update() {
+            const now = new Date();
+            let h = now.getHours();
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const period = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            document.getElementById('time').textContent = `${h}:${m}`;
+            document.getElementById('period').textContent = period;
+        }
+        update();
+        setInterval(update, 1000);
+    </script>
+</body>
+</html>
