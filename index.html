@@ -313,6 +313,24 @@
         // Initial load + refresh every 10 minutes.
         updateWeatherOnce();
         setInterval(updateWeatherOnce, 10 * 60 * 1000);
+
+        // --------- Auto-reload on deploy ---------
+        // Poll /version.txt (generated at image build time) and reload if it changes.
+        let __lastVersion = null;
+        async function __checkForUpdate() {
+            try {
+                const r = await fetch('/version.txt', { cache: 'no-store' });
+                if (!r.ok) return;
+                const v = (await r.text()).trim();
+                if (!v) return;
+                if (__lastVersion === null) __lastVersion = v;
+                else if (v !== __lastVersion) location.reload();
+            } catch {
+                // ignore
+            }
+        }
+        __checkForUpdate();
+        setInterval(__checkForUpdate, 15 * 1000);
     </script>
 </body>
 </html>
