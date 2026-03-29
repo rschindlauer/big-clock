@@ -14,20 +14,22 @@
 
         :root {
             --bg: #0a0a0a;
-            --fg: #888;
-            --muted: #555;
-            --weather-fg: #777;
-            --weather-muted: #4b4b4b;
+            --fg: rgba(255,255,255,0.70);
+            --muted: rgba(255,255,255,0.38);
+            --weather-fg: rgba(255,255,255,0.66);
+            --weather-muted: rgba(255,255,255,0.42);
         }
 
         body {
-            background: var(--bg);
+            background: radial-gradient(1200px 900px at 50% 30%, rgba(255,255,255,0.045), transparent 55%), var(--bg);
             color: var(--fg);
             font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
             font-weight: 700;
             height: 100vh;
             overflow: hidden;
             user-select: none;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
         }
 
         /* Layout: keep the clock big, weather underneath */
@@ -42,19 +44,24 @@
         #clock {
             line-height: 0.95;
             font-size: 20vw;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.03em;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
             margin-top: auto;
             margin-bottom: auto;
+            color: rgba(255,255,255,0.78);
+            text-shadow:
+                0 18px 50px rgba(0,0,0,0.55),
+                0 2px 0 rgba(255,255,255,0.06);
         }
 
         #period {
             font-size: 5vw;
             font-weight: 300;
-            color: var(--muted);
+            color: rgba(255,255,255,0.40);
             margin-left: 1vw;
             vertical-align: super;
+            letter-spacing: 0.12em;
         }
 
         #weather {
@@ -65,7 +72,16 @@
             line-height: 1.2;
             text-align: center;
             margin-top: auto; /* pin to bottom */
-            padding-bottom: 1vh;
+            padding-bottom: 1.4vh;
+        }
+
+        /* A subtle “playful” underline shimmer behind the place name */
+        #weather-line {
+            display: inline-block;
+            padding: 0.15vh 0.6vw;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+            border: 1px solid rgba(255,255,255,0.06);
         }
 
         #weather small {
@@ -77,39 +93,105 @@
         }
 
         /* Fancy bits */
-        #weather-chart {
-            display: block;
-            width: 100%;
-            height: 9vh;
-            min-height: 56px;
-            max-height: 130px;
-            margin: 1.1vh auto 0;
-            opacity: 0.95;
-            filter: drop-shadow(0 8px 22px rgba(0,0,0,0.55));
+        #weather-card {
+            margin: 1.2vh auto 0;
+            padding: 1.0vh 1.2vw;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+            display: grid;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto auto;
+            column-gap: 1.2vw;
+            row-gap: 0.6vh;
+            align-items: center;
+            text-align: left;
         }
 
-        #weather-meta {
-            margin-top: 0.8vh;
-            font-size: 2.0vw;
-            color: var(--weather-muted);
+        /* Hide the card entirely until we have real data */
+        #weather-card:empty { display: none; }
+        #weather-card[data-ready="0"] { display: none; }
+
+        #weather-icon {
+            grid-row: 1 / span 2;
+            width: 6.0vw;
+            min-width: 40px;
+            max-width: 76px;
+            aspect-ratio: 1 / 1;
+            display: grid;
+            place-items: center;
+            background: transparent;
+            border: 0;
+        }
+
+        #weather-icon svg {
+            width: 84%;
+            height: 84%;
+            opacity: 0.9;
+            filter: none;
+        }
+
+        #weather-now {
+            font-size: 2.9vw;
+            line-height: 1.0;
+            letter-spacing: -0.02em;
+            color: rgba(255,255,255,0.86);
+            font-weight: 700;
+        }
+
+        #weather-now .temp {
+            font-variant-numeric: tabular-nums;
+        }
+
+        #weather-now .cond {
             font-weight: 300;
+            color: rgba(255,255,255,0.62);
+            margin-left: 0.7vw;
             letter-spacing: 0.01em;
         }
 
-        .chip {
-            display: inline-flex;
-            align-items: baseline;
-            gap: 0.4vw;
-            padding: 0.35vh 0.9vw;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 999px;
-            background: rgba(255,255,255,0.03);
-            margin: 0.4vh 0.3vw;
+        #weather-hilo {
+            margin-top: 0.4vh;
+            font-size: 2.0vw;
+            color: rgba(255,255,255,0.45);
+            font-weight: 300;
         }
 
-        .chip b {
-            color: var(--weather-fg);
+        .pill {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.45vw;
+            padding: 0.35vh 0.9vw;
+            border-radius: 999px;
+            margin: 0.4vh 0.25vw 0 0;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.52);
+            font-size: 1.7vw;
+            font-weight: 300;
+        }
+
+        .pill b {
+            color: rgba(255,255,255,0.78);
             font-weight: 700;
+        }
+
+        /* Temperature accent colors */
+        .t-cold { --acc: #66d9ff; }
+        .t-mild { --acc: #9cffd8; }
+        .t-warm { --acc: #ffd36b; }
+        .t-hot  { --acc: #ff7a7a; }
+
+        #weather-card {
+            border-color: color-mix(in srgb, var(--acc, rgba(255,255,255,0.10)) 30%, rgba(255,255,255,0.08));
+        }
+        #weather-icon {
+            background: transparent;
+        }
+        #weather-now .temp {
+            color: color-mix(in srgb, var(--acc, rgba(255,255,255,0.86)) 85%, rgba(255,255,255,0.86));
+            text-shadow: 0 14px 34px color-mix(in srgb, var(--acc, rgba(0,0,0,0.0)) 35%, rgba(0,0,0,0));
         }
 
         /* When the screen is very tall/narrow, avoid oversized weather text */
@@ -142,24 +224,14 @@
         <div id="weather" aria-label="Weather">
             <div id="weather-line">Loading weather…</div>
             <small id="weather-sub"></small>
-            <svg id="weather-chart" viewBox="0 0 1000 140" preserveAspectRatio="none" aria-label="Temperature chart" role="img">
-                <defs>
-                    <linearGradient id="tempFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="rgba(255,255,255,0.18)" />
-                        <stop offset="100%" stop-color="rgba(255,255,255,0.00)" />
-                    </linearGradient>
-                    <linearGradient id="tempStroke" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stop-color="rgba(255,255,255,0.28)" />
-                        <stop offset="50%" stop-color="rgba(255,255,255,0.62)" />
-                        <stop offset="100%" stop-color="rgba(255,255,255,0.28)" />
-                    </linearGradient>
-                </defs>
-                <g id="chart-grid"></g>
-                <path id="chart-area" d="" fill="url(#tempFill)" />
-                <path id="chart-line" d="" fill="none" stroke="url(#tempStroke)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
-                <g id="chart-points"></g>
-            </svg>
-            <div id="weather-meta" aria-label="Weather details"></div>
+            <div id="weather-card" role="group" aria-label="Weather summary" data-ready="0">
+                <div id="weather-icon" aria-hidden="true"></div>
+                <div id="weather-temps">
+                    <div id="weather-now"></div>
+                    <div id="weather-hilo"></div>
+                </div>
+                <div id="weather-badges" aria-label="Weather details"></div>
+            </div>
         </div>
     </div>
 
@@ -191,11 +263,11 @@
 
         const $weatherLine = document.getElementById('weather-line');
         const $weatherSub = document.getElementById('weather-sub');
-        const $chartLine = document.getElementById('chart-line');
-        const $chartArea = document.getElementById('chart-area');
-        const $chartPoints = document.getElementById('chart-points');
-        const $chartGrid = document.getElementById('chart-grid');
-        const $weatherMeta = document.getElementById('weather-meta');
+        const $weatherCard = document.getElementById('weather-card');
+        const $weatherIcon = document.getElementById('weather-icon');
+        const $weatherNow = document.getElementById('weather-now');
+        const $weatherHiLo = document.getElementById('weather-hilo');
+        const $weatherBadges = document.getElementById('weather-badges');
 
         function qs() {
             return new URLSearchParams(location.search);
@@ -354,113 +426,111 @@
             return `${h}:${m}`;
         }
 
-        function drawTempChart(temps, unitSymbol) {
-            if (!temps || temps.length < 2) {
-                $chartLine.setAttribute('d', '');
-                $chartArea.setAttribute('d', '');
-                $chartPoints.innerHTML = '';
-                $chartGrid.innerHTML = '';
-                return;
-            }
+        function tempClass(tempF, unitSymbol) {
+            // If metric, convert thresholds roughly
+            const t = unitSymbol === '°C' ? (tempF * 9/5 + 32) : tempF;
+            if (t <= 45) return 't-cold';
+            if (t <= 65) return 't-mild';
+            if (t <= 82) return 't-warm';
+            return 't-hot';
+        }
 
-            const W = 1000;
-            const H = 140;
-            const padX = 22;
-            const padY = 14;
-            const innerW = W - padX * 2;
-            const innerH = H - padY * 2;
+        function iconForWmo(code) {
+            // Simple inline SVG set (no external assets)
+            const common = 'fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"';
+            const glow = 'stroke="rgba(255,255,255,0.45)"';
 
-            // Light smoothing to avoid jagged “stair-step” look
-            const smooth = temps.map((t, i, a) => {
-                const prev = a[Math.max(0, i - 1)];
-                const next = a[Math.min(a.length - 1, i + 1)];
-                return (prev + t + next) / 3;
-            });
+            // helpers
+            const sun = `
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <circle cx="50" cy="50" r="18" ${common} />
+                <g ${common} ${glow}>
+                  <path d="M50 10v10"/><path d="M50 80v10"/>
+                  <path d="M10 50h10"/><path d="M80 50h10"/>
+                  <path d="M21 21l7 7"/><path d="M72 72l7 7"/>
+                  <path d="M79 21l-7 7"/><path d="M28 72l-7 7"/>
+                </g>
+              </svg>`;
 
-            const tmin = Math.min(...smooth);
-            const tmax = Math.max(...smooth);
-            const span = Math.max(1, tmax - tmin);
+            const cloud = `
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M28 62c-10 0-18-7-18-16 0-8 6-15 14-16 3-12 15-20 28-18 11 1 20 9 22 19 9 1 16 8 16 17 0 10-9 18-20 18H28z" ${common}/>
+              </svg>`;
 
-            const pts = smooth.map((t, i) => {
-                const x = padX + (i / (smooth.length - 1)) * innerW;
-                const y = padY + (1 - (t - tmin) / span) * innerH;
-                return { x, y, t };
-            });
+            const rain = `
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M28 54c-10 0-18-7-18-16 0-8 6-15 14-16 3-12 15-20 28-18 11 1 20 9 22 19 9 1 16 8 16 17 0 10-9 18-20 18H28z" ${common}/>
+                <g ${common}>
+                  <path d="M34 70l-6 10"/><path d="M52 70l-6 10"/><path d="M70 70l-6 10"/>
+                </g>
+              </svg>`;
 
-            // Subtle grid (3 horizontal lines)
-            const gridLines = 3;
-            $chartGrid.innerHTML = Array.from({ length: gridLines }, (_, i) => {
-                const y = padY + (i / (gridLines - 1)) * innerH;
-                const alpha = i === 0 || i === gridLines - 1 ? 0.08 : 0.05;
-                return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${(W - padX)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,${alpha})" stroke-width="2" />`;
-            }).join('');
+            const snow = `
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M28 54c-10 0-18-7-18-16 0-8 6-15 14-16 3-12 15-20 28-18 11 1 20 9 22 19 9 1 16 8 16 17 0 10-9 18-20 18H28z" ${common}/>
+                <g ${common}>
+                  <path d="M35 72h0"/><path d="M50 80h0"/><path d="M65 72h0"/>
+                </g>
+              </svg>`;
 
-            // Smooth curve using Catmull-Rom → Bezier
-            function catmullRomToBezier(points) {
-                let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-                for (let i = 0; i < points.length - 1; i++) {
-                    const p0 = points[Math.max(0, i - 1)];
-                    const p1 = points[i];
-                    const p2 = points[i + 1];
-                    const p3 = points[Math.min(points.length - 1, i + 2)];
+            const fog = `
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M20 44h60" ${common} ${glow}/>
+                <path d="M14 58h72" ${common}/>
+                <path d="M22 72h56" ${common} ${glow}/>
+              </svg>`;
 
-                    const c1x = p1.x + (p2.x - p0.x) / 6;
-                    const c1y = p1.y + (p2.y - p0.y) / 6;
-                    const c2x = p2.x - (p3.x - p1.x) / 6;
-                    const c2y = p2.y - (p3.y - p1.y) / 6;
+            const storm = `
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M28 52c-10 0-18-7-18-16 0-8 6-15 14-16 3-12 15-20 28-18 11 1 20 9 22 19 9 1 16 8 16 17 0 10-9 18-20 18H28z" ${common}/>
+                <path d="M52 62l-10 16h10l-8 14" ${common}/>
+              </svg>`;
 
-                    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-                }
-                return d;
-            }
-
-            const d = catmullRomToBezier(pts);
-            $chartLine.setAttribute('d', d);
-
-            const area = `${d} L ${pts[pts.length - 1].x.toFixed(1)} ${(H - padY).toFixed(1)} L ${pts[0].x.toFixed(1)} ${(H - padY).toFixed(1)} Z`;
-            $chartArea.setAttribute('d', area);
-
-            // Mark min/max from the *original* temps (more honest)
-            const origMin = Math.min(...temps);
-            const origMax = Math.max(...temps);
-            const minIdx = temps.indexOf(origMin);
-            const maxIdx = temps.indexOf(origMax);
-            const marks = [minIdx, maxIdx].filter((v, i, a) => a.indexOf(v) === i);
-
-            $chartPoints.innerHTML = marks.map(idx => {
-                const p = pts[idx];
-                const labelY = Math.max(18, p.y - 12);
-                const anchor = idx < temps.length * 0.2 ? 'start' : (idx > temps.length * 0.8 ? 'end' : 'middle');
-                const val = idx === minIdx ? origMin : origMax;
-                return `
-                    <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5.5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.55)" stroke-width="2" />
-                    <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" fill="rgba(255,255,255,0.58)" font-size="20" text-anchor="${anchor}" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">${Math.round(val)}${unitSymbol}</text>
-                `;
-            }).join('');
+            if (code === 0) return sun;
+            if (code === 1 || code === 2) return sun; // mostly/partly: keep sun vibe
+            if (code === 3) return cloud;
+            if (code === 45 || code === 48) return fog;
+            if ([51,53,55,61,63,65,80,81,82].includes(code)) return rain;
+            if ([71,73,75].includes(code)) return snow;
+            if ([95,96,99].includes(code)) return storm;
+            return cloud;
         }
 
         function renderWeather(w) {
             const cond = wmoToText(w.currentCode);
             const todayCond = wmoToText(w.todayCode);
-            const popTxt = (w.pop === 0 || w.pop) ? ` • ${w.pop}% precip` : '';
+            const popTxt = (w.pop === 0 || w.pop) ? `${w.pop}% precip` : null;
 
-            $weatherLine.textContent = `${w.placeName}: ${w.currentTemp}${w.unitSymbol} (${cond})`;
-            $weatherSub.textContent = `Today: ${w.hi}${w.unitSymbol} / ${w.lo}${w.unitSymbol} • ${todayCond}${popTxt}`;
+            // Accent color by current temp
+            $weatherCard.classList.remove('t-cold','t-mild','t-warm','t-hot');
+            $weatherCard.classList.add(tempClass(w.currentTemp, w.unitSymbol));
 
-            drawTempChart(w.temps, w.unitSymbol);
+            $weatherLine.textContent = w.placeName;
+            $weatherSub.textContent = todayCond;
+
+            $weatherIcon.innerHTML = iconForWmo(w.todayCode ?? w.currentCode);
+
+            $weatherNow.innerHTML = `<span class="temp">${w.currentTemp}${w.unitSymbol}</span><span class="cond">${cond}</span>`;
+            $weatherHiLo.textContent = `H ${w.hi}${w.unitSymbol}  •  L ${w.lo}${w.unitSymbol}`;
+
+            $weatherCard.setAttribute('data-ready', '1');
 
             const hum = (w.humidity === 0 || w.humidity) ? `${w.humidity}%` : '—';
             const wind = (w.wind === 0 || w.wind) ? `${Math.round(w.wind)} ${w.windUnit}` : '—';
             const sr = fmtTimeHHMM(w.sunrise) || '—';
             const ss = fmtTimeHHMM(w.sunset) || '—';
 
-            $weatherMeta.innerHTML = `
-                <span class="chip">Feels <b>${w.feelsLike}${w.unitSymbol}</b></span>
-                <span class="chip">Humidity <b>${hum}</b></span>
-                <span class="chip">Wind <b>${wind}</b></span>
-                <span class="chip">Sun <b>${sr}</b>–<b>${ss}</b></span>
-            `;
+            const pills = [
+                `<span class="pill">Feels <b>${w.feelsLike}${w.unitSymbol}</b></span>`,
+                `<span class="pill">Humidity <b>${hum}</b></span>`,
+                `<span class="pill">Wind <b>${wind}</b></span>`,
+                `<span class="pill">Sun <b>${sr}</b>–<b>${ss}</b></span>`,
+                popTxt ? `<span class="pill">Precip <b>${popTxt}</b></span>` : ''
+            ].join('');
+
+            $weatherBadges.innerHTML = pills;
         }
+
 
         async function updateWeatherOnce() {
             try {
