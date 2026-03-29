@@ -1,0 +1,7 @@
+services:
+  big-clock:
+    build: .
+    container_name: big-clock
+    ports:
+      - "8088:80"
+    restart: unless-stopped
