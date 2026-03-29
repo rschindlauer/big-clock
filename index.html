@@ -80,11 +80,12 @@
         #weather-chart {
             display: block;
             width: 100%;
-            height: 10vh;
-            min-height: 54px;
-            max-height: 140px;
-            margin: 1.2vh auto 0;
-            opacity: 0.9;
+            height: 9vh;
+            min-height: 56px;
+            max-height: 130px;
+            margin: 1.1vh auto 0;
+            opacity: 0.95;
+            filter: drop-shadow(0 8px 22px rgba(0,0,0,0.55));
         }
 
         #weather-meta {
@@ -147,9 +148,15 @@
                         <stop offset="0%" stop-color="rgba(255,255,255,0.18)" />
                         <stop offset="100%" stop-color="rgba(255,255,255,0.00)" />
                     </linearGradient>
+                    <linearGradient id="tempStroke" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="rgba(255,255,255,0.28)" />
+                        <stop offset="50%" stop-color="rgba(255,255,255,0.62)" />
+                        <stop offset="100%" stop-color="rgba(255,255,255,0.28)" />
+                    </linearGradient>
                 </defs>
+                <g id="chart-grid"></g>
                 <path id="chart-area" d="" fill="url(#tempFill)" />
-                <path id="chart-line" d="" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                <path id="chart-line" d="" fill="none" stroke="url(#tempStroke)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
                 <g id="chart-points"></g>
             </svg>
             <div id="weather-meta" aria-label="Weather details"></div>
@@ -187,6 +194,7 @@
         const $chartLine = document.getElementById('chart-line');
         const $chartArea = document.getElementById('chart-area');
         const $chartPoints = document.getElementById('chart-points');
+        const $chartGrid = document.getElementById('chart-grid');
         const $weatherMeta = document.getElementById('weather-meta');
 
         function qs() {
@@ -351,56 +359,82 @@
                 $chartLine.setAttribute('d', '');
                 $chartArea.setAttribute('d', '');
                 $chartPoints.innerHTML = '';
+                $chartGrid.innerHTML = '';
                 return;
             }
 
             const W = 1000;
             const H = 140;
-            const padX = 18;
+            const padX = 22;
             const padY = 14;
             const innerW = W - padX * 2;
             const innerH = H - padY * 2;
 
-            const tmin = Math.min(...temps);
-            const tmax = Math.max(...temps);
+            // Light smoothing to avoid jagged “stair-step” look
+            const smooth = temps.map((t, i, a) => {
+                const prev = a[Math.max(0, i - 1)];
+                const next = a[Math.min(a.length - 1, i + 1)];
+                return (prev + t + next) / 3;
+            });
+
+            const tmin = Math.min(...smooth);
+            const tmax = Math.max(...smooth);
             const span = Math.max(1, tmax - tmin);
 
-            const pts = temps.map((t, i) => {
-                const x = padX + (i / (temps.length - 1)) * innerW;
+            const pts = smooth.map((t, i) => {
+                const x = padX + (i / (smooth.length - 1)) * innerW;
                 const y = padY + (1 - (t - tmin) / span) * innerH;
                 return { x, y, t };
             });
 
-            // Smooth-ish line via quadratic segments
-            let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-            for (let i = 1; i < pts.length; i++) {
-                const prev = pts[i - 1];
-                const cur = pts[i];
-                const cx = ((prev.x + cur.x) / 2).toFixed(1);
-                const cy = ((prev.y + cur.y) / 2).toFixed(1);
-                d += ` Q ${prev.x.toFixed(1)} ${prev.y.toFixed(1)} ${cx} ${cy}`;
-                if (i === pts.length - 1) {
-                    d += ` T ${cur.x.toFixed(1)} ${cur.y.toFixed(1)}`;
+            // Subtle grid (3 horizontal lines)
+            const gridLines = 3;
+            $chartGrid.innerHTML = Array.from({ length: gridLines }, (_, i) => {
+                const y = padY + (i / (gridLines - 1)) * innerH;
+                const alpha = i === 0 || i === gridLines - 1 ? 0.08 : 0.05;
+                return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${(W - padX)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,${alpha})" stroke-width="2" />`;
+            }).join('');
+
+            // Smooth curve using Catmull-Rom → Bezier
+            function catmullRomToBezier(points) {
+                let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p0 = points[Math.max(0, i - 1)];
+                    const p1 = points[i];
+                    const p2 = points[i + 1];
+                    const p3 = points[Math.min(points.length - 1, i + 2)];
+
+                    const c1x = p1.x + (p2.x - p0.x) / 6;
+                    const c1y = p1.y + (p2.y - p0.y) / 6;
+                    const c2x = p2.x - (p3.x - p1.x) / 6;
+                    const c2y = p2.y - (p3.y - p1.y) / 6;
+
+                    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
                 }
+                return d;
             }
 
+            const d = catmullRomToBezier(pts);
             $chartLine.setAttribute('d', d);
 
             const area = `${d} L ${pts[pts.length - 1].x.toFixed(1)} ${(H - padY).toFixed(1)} L ${pts[0].x.toFixed(1)} ${(H - padY).toFixed(1)} Z`;
             $chartArea.setAttribute('d', area);
 
-            // Mark min/max points
-            const minIdx = temps.indexOf(tmin);
-            const maxIdx = temps.indexOf(tmax);
+            // Mark min/max from the *original* temps (more honest)
+            const origMin = Math.min(...temps);
+            const origMax = Math.max(...temps);
+            const minIdx = temps.indexOf(origMin);
+            const maxIdx = temps.indexOf(origMax);
             const marks = [minIdx, maxIdx].filter((v, i, a) => a.indexOf(v) === i);
 
             $chartPoints.innerHTML = marks.map(idx => {
                 const p = pts[idx];
-                const labelY = Math.max(16, p.y - 10);
+                const labelY = Math.max(18, p.y - 12);
                 const anchor = idx < temps.length * 0.2 ? 'start' : (idx > temps.length * 0.8 ? 'end' : 'middle');
+                const val = idx === minIdx ? origMin : origMax;
                 return `
-                    <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5" fill="rgba(255,255,255,0.55)" />
-                    <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" fill="rgba(255,255,255,0.55)" font-size="20" text-anchor="${anchor}" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">${Math.round(p.t)}${unitSymbol}</text>
+                    <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5.5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.55)" stroke-width="2" />
+                    <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" fill="rgba(255,255,255,0.58)" font-size="20" text-anchor="${anchor}" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">${Math.round(val)}${unitSymbol}</text>
                 `;
             }).join('');
         }
