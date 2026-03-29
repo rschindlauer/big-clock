@@ -53,6 +53,10 @@
             text-shadow:
                 0 18px 50px rgba(0,0,0,0.55),
                 0 2px 0 rgba(255,255,255,0.06);
+
+            /* Align AM/PM to the bottom of the time (no more vertical-align: super) */
+            display: inline-flex;
+            align-items: flex-end;
         }
 
         #period {
@@ -60,8 +64,8 @@
             font-weight: 300;
             color: rgba(255,255,255,0.40);
             margin-left: 1vw;
-            vertical-align: super;
             letter-spacing: 0.12em;
+            line-height: 1;
         }
 
         #weather {
