@@ -1,6 +1,11 @@
 services:
   big-clock:
-    build: .
+    build:
+      context: .
+      args:
+        # Use the current git SHA as a build version so /version.txt changes
+        # on every redeploy that pulls new commits.
+        BUILD_VERSION: ${BUILD_VERSION:-dev}
     container_name: big-clock
     ports:
       - "8088:80"
