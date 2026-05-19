@@ -293,6 +293,22 @@
     </div>
 
     <script>
+        // --------- Server-time offset ---------
+        // The tablet driving this display has a wrong system clock and we
+        // don't want to touch its settings. Instead we treat the home
+        // server (which serves this page over nginx) as our time source:
+        // every HTTP response includes a Date: header set from the server's
+        // clock. We already poll /version.txt every 15s for auto-reload, so
+        // we piggyback on those responses to compute and continuously
+        // refresh an offset between server time and local Date.now().
+        //
+        // Accuracy is ~RTT/2 + 1s (Date header is whole-second resolution),
+        // which is plenty for a minute-resolution clock on a LAN.
+        let __serverOffsetMs = 0;
+        function serverNow() {
+            return new Date(Date.now() + __serverOffsetMs);
+        }
+
         // --------- Clock ---------
         function renderClock(now) {
             let h = now.getHours();
@@ -318,7 +334,7 @@
         // per-frame cost is just a Date() and a string compare.
         let __lastMinuteKey = '';
         function tickClock() {
-            const now = new Date();
+            const now = serverNow();
             const key = now.getHours() + ':' + now.getMinutes();
             if (key !== __lastMinuteKey) {
                 __lastMinuteKey = key;
@@ -335,7 +351,7 @@
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 __lastMinuteKey = '';
-                renderClock(new Date());
+                renderClock(serverNow());
             }
         });
 
@@ -663,6 +679,21 @@
             try {
                 const r = await fetch('/version.txt', { cache: 'no-store' });
                 if (!r.ok) return;
+
+                // Sync clock to the server's Date: header. The Date header is
+                // a CORS-safelisted response header and is always present on
+                // nginx responses, so this works without any server changes.
+                const dateHeader = r.headers.get('Date');
+                if (dateHeader) {
+                    const serverMs = Date.parse(dateHeader);
+                    if (!Number.isNaN(serverMs)) {
+                        __serverOffsetMs = serverMs - Date.now();
+                        // Force a re-render in case the offset just pushed us
+                        // across a minute boundary (or fixed a stale display).
+                        __lastMinuteKey = '';
+                    }
+                }
+
                 const v = (await r.text()).trim();
                 if (!v) return;
                 if (__lastVersion === null) {
