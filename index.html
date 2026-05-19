@@ -288,15 +288,41 @@
             document.getElementById('period').textContent = period;
         }
 
-        function tickClockAligned() {
+        // Drive the clock from requestAnimationFrame instead of setTimeout.
+        //
+        // Why: Chromium applies "intensive timer throttling" to long-lived
+        // pages that don't receive user input (any kiosk display, basically),
+        // clamping chained setTimeout()s to fire only ~once per minute. Because
+        // the timer callback is what re-reads new Date(), the visible minute
+        // can lag real time by up to the throttle interval — producing the
+        // 1–2 minutes of "drift" we were seeing.
+        //
+        // rAF is not subject to this throttling while the page is visible
+        // (it's driven by the display's vsync), so the clock stays fresh.
+        // We only touch the DOM when the minute key actually changes, so the
+        // per-frame cost is just a Date() and a string compare.
+        let __lastMinuteKey = '';
+        function tickClock() {
             const now = new Date();
-            renderClock(now);
-            // Align to the next second boundary; we only show minutes, but this keeps it steady.
-            const msToNextSecond = 1000 - now.getMilliseconds();
-            setTimeout(tickClockAligned, msToNextSecond);
+            const key = now.getHours() + ':' + now.getMinutes();
+            if (key !== __lastMinuteKey) {
+                __lastMinuteKey = key;
+                renderClock(now);
+            }
+            requestAnimationFrame(tickClock);
         }
+        requestAnimationFrame(tickClock);
 
-        tickClockAligned();
+        // Safety net: rAF is paused while the tab is hidden or the monitor
+        // is asleep. Force a refresh as soon as we become visible again so
+        // the clock can never display a stale minute for longer than it
+        // takes to wake the screen.
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                __lastMinuteKey = '';
+                renderClock(new Date());
+            }
+        });
 
         // --------- Weather ---------
         // Uses Open-Meteo (no API key):
