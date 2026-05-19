@@ -16,8 +16,22 @@
             --bg: #0a0a0a;
             --fg: rgba(255,255,255,0.70);
             --muted: rgba(255,255,255,0.38);
+            --build-stamp: rgba(255,255,255,0.18);
             --weather-fg: rgba(255,255,255,0.66);
             --weather-muted: rgba(255,255,255,0.42);
+        }
+        #build-stamp {
+            position: fixed;
+            top: 0.6rem;
+            right: 0.8rem;
+            font-size: 0.7rem;
+            font-weight: 400;
+            letter-spacing: 0.04em;
+            color: var(--build-stamp);
+            font-variant-numeric: tabular-nums;
+            pointer-events: none;
+            user-select: none;
+            z-index: 10;
         }
 
         body {
@@ -256,6 +270,7 @@
     </style>
 </head>
 <body>
+    <div id="build-stamp" aria-hidden="true"></div>
     <div id="wrap">
         <div id="clock" aria-label="Current time">
             <span id="time"></span><span id="period" aria-hidden="true"></span>
@@ -650,8 +665,13 @@
                 if (!r.ok) return;
                 const v = (await r.text()).trim();
                 if (!v) return;
-                if (__lastVersion === null) __lastVersion = v;
-                else if (v !== __lastVersion) location.reload();
+                if (__lastVersion === null) {
+                    __lastVersion = v;
+                    const $stamp = document.getElementById('build-stamp');
+                    if ($stamp) $stamp.textContent = v;
+                } else if (v !== __lastVersion) {
+                    location.reload();
+                }
             } catch {
                 // ignore
             }
