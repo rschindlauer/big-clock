@@ -168,6 +168,20 @@
             font-weight: 300;
         }
 
+        #weather-sun {
+            margin-top: 0.5vh;
+            font-size: 1.5vw;
+            color: rgba(255,255,255,0.42);
+            font-weight: 300;
+            display: flex;
+            gap: 1.1vw;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #weather-sun .sun-up { color: rgba(255, 200, 120, 0.80); }
+        #weather-sun .sun-dn { color: rgba(150, 175, 225, 0.75); }
+        #weather-sun:empty { display: none; }
+
         #weather-hilo .hi-val {
             font-size: 2.4vw;
             color: rgba(255,255,255,0.70);
@@ -231,6 +245,22 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .forecast-day .day-sun {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.1vh;
+            margin-top: 0.4vh;
+            font-size: 1.05vw;
+            font-weight: 300;
+            line-height: 1.15;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .forecast-day .day-sun .sun-up { color: rgba(255, 200, 120, 0.62); }
+        .forecast-day .day-sun .sun-dn { color: rgba(150, 175, 225, 0.58); }
+        .forecast-day .day-sun:empty { display: none; }
+
         /* Temperature accent colors */
         .t-cold { --acc: #66d9ff; }
         .t-mild { --acc: #9cffd8; }
@@ -285,6 +315,7 @@
                     <div id="weather-temps">
                         <div id="weather-now"></div>
                         <div id="weather-hilo"></div>
+                        <div id="weather-sun"></div>
                     </div>
                 </div>
                 <div id="weather-forecast"></div>
@@ -366,6 +397,7 @@
         const $weatherIcon = document.getElementById('weather-icon');
         const $weatherNow = document.getElementById('weather-now');
         const $weatherHiLo = document.getElementById('weather-hilo');
+        const $weatherSun = document.getElementById('weather-sun');
         const $weatherForecast = document.getElementById('weather-forecast');
 
         function qs() {
@@ -518,6 +550,8 @@
                     hi: Math.round(daily.temperature_2m_max[i + 1]),
                     lo: Math.round(daily.temperature_2m_min[i + 1]),
                     code: daily.weather_code[i + 1],
+                    sunrise: daily.sunrise?.[i + 1],
+                    sunset: daily.sunset?.[i + 1],
                 }))
             };
         }
@@ -529,6 +563,18 @@
             const h = String(d.getHours()).padStart(2, '0');
             const m = String(d.getMinutes()).padStart(2, '0');
             return `${h}:${m}`;
+        }
+
+        // Compact 12-hour sun time, e.g. "6:52a" / "7:41p" (no leading zero).
+        function fmtSunTime(isoLike) {
+            if (!isoLike) return null;
+            const d = new Date(isoLike);
+            if (Number.isNaN(d.getTime())) return null;
+            let h = d.getHours();
+            const m = String(d.getMinutes()).padStart(2, '0');
+            const ap = h >= 12 ? 'p' : 'a';
+            h = h % 12 || 12;
+            return `${h}:${m}${ap}`;
         }
 
         function tempClass(tempF, unitSymbol) {
@@ -616,6 +662,12 @@
             $weatherNow.innerHTML = `<span class="temp">${w.currentTemp}${w.unitSymbol}</span>`;
             $weatherHiLo.innerHTML = `H <span class="hi-val">${w.hi}${w.unitSymbol}</span>  ·  L ${w.lo}${w.unitSymbol}`;
 
+            const sr = fmtSunTime(w.sunrise);
+            const ss = fmtSunTime(w.sunset);
+            $weatherSun.innerHTML = (sr && ss)
+                ? `<span class="sun-up">\u2191 ${sr}</span><span class="sun-dn">\u2193 ${ss}</span>`
+                : '';
+
             $weatherCard.setAttribute('data-ready', '1');
 
             const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -623,11 +675,17 @@
                 const d = new Date(day.date + 'T12:00:00');
                 const name = dayNames[d.getDay()];
                 const cls = tempClass(day.hi, w.unitSymbol);
+                const dsr = fmtSunTime(day.sunrise);
+                const dss = fmtSunTime(day.sunset);
+                const sunHtml = (dsr && dss)
+                    ? `<div class="day-sun"><span class="sun-up">\u2191 ${dsr}</span><span class="sun-dn">\u2193 ${dss}</span></div>`
+                    : '';
                 return `<div class="forecast-day ${cls}">
                     <span class="day-name">${name}</span>
                     <div class="day-icon">${iconForWmo(day.code)}</div>
                     <span class="day-hi">${day.hi}${w.unitSymbol}</span>
                     <span class="day-lo">${day.lo}${w.unitSymbol}</span>
+                    ${sunHtml}
                 </div>`;
             }).join('');
         }
